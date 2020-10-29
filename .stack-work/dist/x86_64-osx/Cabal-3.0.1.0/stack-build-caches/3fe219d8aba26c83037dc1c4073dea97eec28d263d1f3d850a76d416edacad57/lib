@@ -1,0 +1,40 @@
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/EitherIO.hs:
+  hash: 407543a4f2e353ee48548c52c04f3b094acd1355356677b31ce71d13f673eb3b
+  size: 839
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Parser/Instances.hs:
+  hash: 1b81bbe457cf8d53c15ac33eb0056170aeac052a0796eff476cedbd5897ad510
+  size: 1897
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Cards.hs:
+  hash: 6a9f44dd547729f596e1d29969b982c106208a8abbf45e8b21803cf6071e93e7
+  size: 641
+  modtime: 1603784270
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/package.yaml:
+  hash: 4dbe5eab7da8d8aa37d74c914fa150a8d28585a1d0d5cebc4de4338890ac957c
+  size: 1241
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/rummy.cabal:
+  hash: 583e7400d24d694f9749c0584cdeaa44edf447297da929b5c422bb716690da91
+  size: 1743
+  modtime: 1603961010
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Deck.hs:
+  hash: 8a5075c4094f3f2345cf04a95d176b3836972c61bbba98a7c8dc652d92c03584
+  size: 680
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Rummy/Types.hs:
+  hash: ac2624dd5c727c9ec134b49c61d7e1a0a559c7c0610c2fa7490be0dbc78e1fb0
+  size: 4671
+  modtime: 1603959271
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Parser/Parser.hs:
+  hash: dcae6c7d3423045be7053553480619c4bab9a62a4e2a876272db1a029bc944a7
+  size: 1975
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Rummy/Play.hs:
+  hash: 547184a2203795440384177949c177034f52952a7fef6cd6f846d4b7932cb296
+  size: 8572
+  modtime: 1603514336
+/Users/eliseching/Downloads/2020Assignment2_1023_1831/src/Rummy/Rules.hs:
+  hash: 8aa662e20e9a07a4c47885dabd02bae53759a47e39a7e037fd723c99239c7259
+  size: 3649
+  modtime: 1603879328
