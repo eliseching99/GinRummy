@@ -11,7 +11,7 @@ import Cards
       Suit(Club, Diamond, Spade, Heart) )         -- Finally, the generic card type(s)
 -- You can add more imports if you need them
 import EitherIO
-import Data.List
+import Data.List ( maximumBy, (\\), group, sort, tails )
 import Data.Ord
 
 -- | This card is called at the beginning of your turn, you need to decide which
@@ -41,34 +41,18 @@ pickCard _ _ _ _ _ =(Stock,"yep")
 playCard :: PlayFunc
 -- playCard _ _ _ deck = ( Action Drop a ,"lol") where a = deck!!0
 playCard pickedCard _ _ deck 
-    -- |length deadwoodcards==0 && 
-    |length deadwoodcards==1 && discardedCardforGin/=pickedCard = (Action Gin discardedCardforGin ,"lol") 
-    |totalDeadwoodPoints deadwoodcards >=10 = (Action Drop highestcard, "lol")
-    |totalDeadwoodPoints deadwoodcards <10 && deadwoodCardDiscard/=pickedCard = (Action Knock deadwoodCardDiscard,"lol")
+    |all (isNotDeadwood) meldsFormed == True = (Action Gin a ,"lol") 
+    |totalDeadwoodPoints deadwoodcards >=10 = (Action Drop a, "lol")
+    |totalDeadwoodPoints deadwoodcards <10 = (Action Knock deadwoodCardDiscard,"lol")
     |otherwise = (Action Drop highestcard, "lol")
     
     where 
+        a = deck!!0
         highestcard= last (sort (deck))
         deckPlusNewCard = deck++[pickedCard]
         meldsFormed = (makeMelds (30,30) "lol" deckPlusNewCard)
         deadwoodcards= filter(isDeadwood) meldsFormed
-
-
-        discardedCardforGin=  last (convertMeldtoCard(last deadwoodcards))
         deadwoodCardDiscard = last (convertMeldtoCard (maxByRankMeld deadwoodcards))
-        convertDeadwoodMeldToCards= concat (map (convertMeldtoCard) deadwoodcards)
-        deadwoodwithoutpickedCard= convertDeadwoodMeldToCards\\ [pickedCard]
-        maxDeadwoodCardForKnock= if length deadwoodwithoutpickedCard>0 then last(sort(deadwoodwithoutpickedCard)) else highestcard
-        -- maxDeadwoodCardForKnock= last (sort (deadwoodwithoutpickedCard))
-
-
-checkIfFourFive::Meld->Int
-checkIfFourFive (Set4 _ _ _ _)=4
-checkIfFourFive (Straight4 _ _ _ _)=4
-checkIfFourFive (Straight5 _ _ _ _ _)=5
-
---check if can form gin with current hand +
--- 
 
 -- Get the rank of the card
 getRankMeld :: Meld-> Rank
