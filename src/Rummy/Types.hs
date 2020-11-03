@@ -76,7 +76,7 @@ instance Show PlayerError where
   show StraightError = "All cards in a straight must be of consecutive ranks"
   show KnockError = "Knocked with more than 10 points in deadwood"
   show GinError = "Called gin with remaining deadwood"
-  show OmitError = "Did not combine all cards into melds"
+  show OmitError = "Did not combine all cards into melds" 
 
 data Player = Player {
   playerId :: PlayerId,

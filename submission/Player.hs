@@ -4,7 +4,14 @@
 module Player where
 
 import Parser.Parser -- This is the source for the parser from the course notes
-import Rummy.Types   -- Here you will find types used in the game of Rummy
+import Rummy.Types
+    ( Act(Drop, Gin, Knock),
+      Action(Action),
+      ActionFunc,
+      Draw(Stock,Discard),
+      Meld(..),
+      MeldFunc,
+      PlayFunc )   -- Here you will find types used in the game of Rummy
 import Cards
     ( Card(..),
       Rank(Jack, Ace, King, Two, Three,Four, Five,Six,Seven, Eight, Nine,Queen,Ten),
@@ -13,6 +20,10 @@ import Cards
 import EitherIO
 import Data.List
 import Data.Ord
+import Data.Functor
+import Control.Monad
+
+import Debug.Trace
 
 -- | This card is called at the beginning of your turn, you need to decide which
 -- pile to draw from.
@@ -25,8 +36,26 @@ import Data.Ord
 --   -> [Card]     -- ^ the player's hand
 --   -> (Draw, String) -- ^ which pile did the player chose to draw from and memory
 pickCard :: ActionFunc
-pickCard _ _ _ _ _ =(Stock,"yep")
+pickCard topDiscard score memory enemyAction hand  
+    | or(checkTopCardThreeSet topDiscard hand)==True= (Discard, "lol")
+    | or (checkTopCardThreeSet topDiscard hand)==True= (Discard,"lol")
+    | otherwise= (Stock,"lol")
 
+
+-- if (or (checkTopCardSet topcard deck))==true then take discard
+
+
+--if checkRankedConsecutive two concatted is more than 0 then take discard
+
+-- need make a master function for meldable
+-- if discard + set2= Set3
+-- if discard + set3= Set4
+-- if discard + straight 2 = Straight3
+-- if discard + straight3= straight 4
+-- if discard + straight4=straight 5
+
+-- if any possbile then take discard
+-- else take stock
 -- | This function is called once you have drawn a card, you need to decide
 -- which action to call.
 
@@ -40,32 +69,50 @@ pickCard _ _ _ _ _ =(Stock,"yep")
 --   -> (Action, String) -- ^ the player's chosen card and new memory
 playCard :: PlayFunc
 -- playCard _ _ _ deck = ( Action Drop a ,"lol") where a = deck!!0
-playCard pickedCard _ _ deck 
-    -- |length deadwoodcards==0 && 
-    |length deadwoodcards==1 && discardedCardforGin/=pickedCard = (Action Gin discardedCardforGin ,"lol") 
-    |totalDeadwoodPoints deadwoodcards >=10 = (Action Drop highestcard, "lol")
-    |totalDeadwoodPoints deadwoodcards <10 && deadwoodCardDiscard/=pickedCard = (Action Knock deadwoodCardDiscard,"lol")
-    |otherwise = (Action Drop highestcard, "lol")
+playCard pickedCard score _ deck 
+    -- =trace ("input deck:"++ show deck ++"picked card:" ++show pickedCard)(Action Drop (highestcard) ,"lol")
+    |all (isNotDeadwood)(makeMelds (30,30)"lol" deckafterdropcard)==True &&checkScore==False = (Action Gin highestcard,"lol")
+    |length deadwoodMelds==1 && checkScore==False = (Action Gin discarded,"lol")
+    |finalPoints<10 && discarded/=pickedCard && checkScore==False = trace("input deck:"++ show deck++" pickedcard:"++show pickedCard++"Score:" ++show score++"MELDSFORMED:" ++show meldsFormed)(Action Knock discarded,"lol")
+    |otherwise = (Action Drop discarded,"ll")
+    -- |all (isNotDeadwood) (makeMelds (30,30) "lo" deckPlusNewCardAndDiscardCard)== True = (Action Gin highestcard,"lol" )
+    -- |length deadwoodcards==1 && discardedCardforGin/=pickedCard = (Action Gin discardedCardforGin ,"lol") 
+    -- |totalDeadwoodPoints deadwoodcards >=10 && deadwoodCardDiscard/=pickedCard = (Action Drop deadwoodCardDiscard, "lol")
+    -- |totalDeadwoodPoints deadwoodcards <10 && deadwoodCardDiscard/=pickedCard = (Action Knock deadwoodCardDiscard,"lol")
+    -- |otherwise = (Action Drop highestcard, "lol")
     
     where 
+        checkScore= if fst score ==0 && snd score==0 then True else False
         highestcard= last (sort (deck))
-        deckPlusNewCard = deck++[pickedCard]
-        meldsFormed = (makeMelds (30,30) "lol" deckPlusNewCard)
-        deadwoodcards= filter(isDeadwood) meldsFormed
+        deckafterdropcard= (deck\\[highestcard]) ++[pickedCard]
+        meldsFormed=(makeMelds (30,30) "lol" deckPlusNewCard)
+        deckPlusNewCard= deck++[pickedCard]
+        deadwoodMelds= filter(isDeadwood) meldsFormed
+        deadwoodCardDiscard = (concat(map (convertMeldtoCard) deadwoodMelds)) 
 
+        discarded=if length deadwoodCardDiscard >=1 && checkIfMaxsamePick==False then maxByRank deadwoodCardDiscard else highestcard
+        checkIfMaxsamePick= if maxByRank deadwoodCardDiscard==pickedCard then True else False
+        deckwithoutDiscard= deckPlusNewCard\\ [discarded]
+        newMeldsformed= (makeMelds (30,30) "lol" deckwithoutDiscard)
+        finalDeadwood= filter(isDeadwood) newMeldsformed
+        finalPoints= totalDeadwoodPoints finalDeadwood
+    --     deckPlusNewCard = deck++[pickedCard]
+    --     meldsFormed = (makeMelds (30,30) "lol" deckPlusNewCard)
 
-        discardedCardforGin=  last (convertMeldtoCard(last deadwoodcards))
-        deadwoodCardDiscard = last (convertMeldtoCard (maxByRankMeld deadwoodcards))
-        convertDeadwoodMeldToCards= concat (map (convertMeldtoCard) deadwoodcards)
-        deadwoodwithoutpickedCard= convertDeadwoodMeldToCards\\ [pickedCard]
-        maxDeadwoodCardForKnock= if length deadwoodwithoutpickedCard>0 then last(sort(deadwoodwithoutpickedCard)) else highestcard
+    --     deckPlusNewCardAndDiscardCard= (deck \\ [highestcard]) ++[pickedCard]
+
+    --     discardedCardforGin=  last (convertMeldtoCard(last deadwoodcards))
+    --     convertDeadwoodMeldToCards= concat (map (convertMeldtoCard) deadwoodcards)
+    --     deadwoodwithoutpickedCard= convertDeadwoodMeldToCards\\ [pickedCard]
+    --     maxDeadwoodCardForKnock= if length deadwoodwithoutpickedCard>0 then last(sort(deadwoodwithoutpickedCard)) else highestcard
         -- maxDeadwoodCardForKnock= last (sort (deadwoodwithoutpickedCard))
 
+-- checkIfSet4::Meld->Meld
+-- checkIfSet4 (Set4 a b c _)= (Set3 a b c)
+-- checkIfSet4 (Straight4 a b c _)= (Straight3 a b c)
+-- checkIfSet4 (_)=
 
-checkIfFourFive::Meld->Int
-checkIfFourFive (Set4 _ _ _ _)=4
-checkIfFourFive (Straight4 _ _ _ _)=4
-checkIfFourFive (Straight5 _ _ _ _ _)=5
+
 
 --check if can form gin with current hand +
 -- 
@@ -73,11 +120,7 @@ checkIfFourFive (Straight5 _ _ _ _ _)=5
 -- Get the rank of the card
 getRankMeld :: Meld-> Rank
 getRankMeld (Deadwood (Card _ r)) = r
-getRankMeld (Set3 _ _ _)= Ace
-getRankMeld(Set4 _ _ _ _)=Ace
-getRankMeld(Straight3 _ _ _)=Ace
-getRankMeld(Straight4 _ _ _ _)=Ace
-getRankMeld(Straight5 _ _ _ _ _)=Ace
+getRankMeld (_)=Ace
 
 -- Getting max card
 maxByRankMeld :: [Meld] -> Meld
@@ -181,7 +224,7 @@ convertDeadwoodToPoints (Straight5 _ _ _ _ _) = 0
 
 
 convertMeldstoPoints:: [Meld]->[Int]
-convertMeldstoPoints melds =  map (\meld-> convertDeadwoodToPoints meld) melds
+convertMeldstoPoints melds =   (\meld-> convertDeadwoodToPoints meld) <$> melds
 
 -- GETS ALL DEADWOOD POINTS FROM MELD
 totalDeadwoodPoints:: [Meld]->Int
@@ -193,7 +236,7 @@ toPoints (Card _ rank) | rank < Jack = fromEnum rank + 1
                        | otherwise = 10 -- Face cards are all worth 10
 
 convertCardstoPoints::[Card] -> [Int]
-convertCardstoPoints deck =  map (\card-> toPoints card) deck
+convertCardstoPoints deck =   (\card-> toPoints card) <$> deck
 
 getDeadwoodPoints:: [Card]->Int
 getDeadwoodPoints l = sum $ convertCardstoPoints l
@@ -206,7 +249,7 @@ playerhand1 :: [Card]
 playerhand1= [Card Heart Two, Card Heart Three, Card Heart Ace, Card Heart Four, Card Spade Two, Card Spade Three, Card Heart Five, Card Club Eight, Card Club Nine, Card Club Two]
 
 convertHandtoDeadwood:: [Card]->[Meld]
-convertHandtoDeadwood deck = map (convertCardtoDeadwood) deck
+convertHandtoDeadwood deck =  (convertCardtoDeadwood) <$> deck
 
 convertCardtoDeadwood:: Card->Meld
 convertCardtoDeadwood (Card s r)  = Deadwood (Card s r) 
@@ -219,6 +262,8 @@ getSuit (Card s _) = s
 -- Get the rank of the card
 getRank :: Card -> Rank
 getRank (Card _ r) = r
+
+
 
 -- Getting max card
 maxByRank :: [Card] -> Card
@@ -243,7 +288,7 @@ groupbyFive ranks = zipWith const (take 5 <$> tails ranks) (drop (4)ranks)
 
 -- gets cards of the same suit
 cardsSameSuit:: Suit -> [Card] -> [Card]
-cardsSameSuit s deck = filter (\card -> getSuit card == s) deck
+cardsSameSuit s  = filter (\card -> getSuit card == s) 
 
 -- Sort Cards based on suit
 -- >>> ranked Heart [Card Heart Three, Card Heart Two, Card Heart Six]
@@ -297,6 +342,10 @@ checkConsecutiveFiveTest s d = map (\combo-> if checkThreeConsecutiveOrMore comb
 checkRankedConsecutive:: Suit -> [Card] -> [[Card]]
 checkRankedConsecutive s deck =   map (\combo -> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else [] ) $ listOfRanked s deck
 
+checkRankedConsecutiveTwo:: Suit -> [Card] -> [[Card]]
+checkRankedConsecutiveTwo s deck =   map (\combo -> if potentialConsecutiveSet combo then convertSetToCard s combo else [] ) $ listOfRanked s deck
+
+
 getStraightsNow :: Suit -> [Card] -> [[Card]]
 getStraightsNow s deck = ((filter(not.null) $ checkRankedConsecutive s deck))
 
@@ -319,14 +368,21 @@ convertSetToCard:: Suit ->[Rank] ->[Card]
 convertSetToCard s deck = map(\rank-> convertRanktoCard s rank) deck
 
 -- Takes a list of cards and Forms Melds that are either Straight3, Straight4, or Straight 5
-convertStraightMelds::[Card]-> Meld
+convertStraightMelds::[Card]-> [Meld]
 convertStraightMelds set
-    |length set==3 = Straight3 (set!!0) (set!!1) (set!!2)
-    |length set==4 = Straight4 (set!!0) (set!!1) (set!!2) (set!!3)
-    |otherwise = Straight5 (set!!0) (set!!1)(set!!2)(set!!3)(set!!4)
+    |length set==3 = [Straight3 (set!!0) (set!!1) (set!!2)]
+    |length set==4 = [Straight4 (set!!0) (set!!1) (set!!2) (set!!3)]
+    |length set==5 =[Straight5 (set!!0) (set!!1)(set!!2)(set!!3)(set!!4)]
+    |length set==6 =[Straight3 (set!!0) (set!!1) (set!!2), Straight3(set!!3)(set!!4)(set!!5)]
+    |length set==7 =[Straight4 (set!!0)(set!!1)(set!!2)(set!!3), Straight3(set!!4)(set!!5)(set!!6) ]
+    |length set==8 =[Straight4 (set!!0)(set!!1) (set!!2)(set!!3), Straight4(set!!4)(set!!5)(set!!6)(set!!7) ]
+    |length set==9 =[Straight5 (set!!0)(set!!1) (set!!2)(set!!3)(set!!4), Straight4(set!!5)(set!!6)(set!!7)(set!!8) ]
+    |length set==10 =[Straight5 (set!!0)(set!!1) (set!!2)(set!!3)(set!!4), Straight5(set!!5)(set!!6)(set!!7)(set!!8)(set!!9) ]
+    | otherwise = []
+
 
 getAllStraights::Suit -> [Card]->[Meld]
-getAllStraights s set = map (convertStraightMelds) straightCombos
+getAllStraights s set = concat (map (convertStraightMelds) straightCombos)
     where straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
 
 -- gets the longest Straight for a Suit for the Player's Hand
@@ -335,7 +391,7 @@ getAllStraights s set = map (convertStraightMelds) straightCombos
 -- Once obtained the combination, get the longest sequence to form the Straight Meld
 -- If forming Straights with a certain Suit doesn't exist return empty list
 getStraightfromSuit::Suit ->[Card]->[Meld]
-getStraightfromSuit s set = map (convertStraightMelds) singleStraight
+getStraightfromSuit s set = concat( map (convertStraightMelds) singleStraight)
     where 
         straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
         singleStraight= if straightCombos==[] then [] else [maximumBy (comparing length) straightCombos]
@@ -385,6 +441,21 @@ cardsSameRank r deck = filter (\card -> getRank card == r) deck
 threeOrFourOfAKind:: Rank -> [Card] -> [Card]
 threeOrFourOfAKind r deck = if lengthCardsSameRank r deck > 2 then cardsSameRank r deck else []
 
+
+twoOfAKind :: Rank -> [Card] -> [Card]
+twoOfAKind r deck = if lengthCardsSameRank r deck == 2  then cardsSameRank r deck else []
+
+checkAllTwoofAKind :: [Card] -> [[Card]]
+checkAllTwoofAKind deck = filter(not.null)$ map(\rank->twoOfAKind rank deck)[Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
+          , Jack , Queen , King] 
+
+
+checkTopCardTwoSet :: Card -> [Card] -> [Bool]
+checkTopCardTwoSet card deck = (\combo->if getRank (head combo)==getRank card then True else False) <$> checkAllTwoofAKind deck
+
+checkTopCardThreeSet ::Card-> [Card]->[Bool]
+checkTopCardThreeSet card deck = (\combo->if length combo ==3 && getRank (head combo)==getRank card then True else False) <$> checkAllThreeOrFourOfAKind deck
+
 -- Master function to map each rank to the function to check if set3 or set4 exists and returns a list
 -- of Set3 or Set4 else return empty list if set3 or set4 doesn't exist
 -- USAGE:
@@ -392,14 +463,14 @@ threeOrFourOfAKind r deck = if lengthCardsSameRank r deck > 2 then cardsSameRank
 -- Card Diamond Two, Card Heart Queen, Card Club Queen]
 -- [[Card Club Ace,Card Spade Ace,Card Heart Ace],[Card Club Two,Card Spade Two,Card Diamond Two],[],[],[],[],[],[],[],[],[],[],[]]
 checkAllThreeOrFourOfAKind:: [Card]->[[Card]]
-checkAllThreeOrFourOfAKind deck = map (\rank -> threeOrFourOfAKind rank deck) [Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
+checkAllThreeOrFourOfAKind deck = filter(not.null) $ map (\rank -> threeOrFourOfAKind rank deck) [Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
           , Jack , Queen , King]
           
 -- Master function that will form All Set3/Set4 
 -- Obtains all non-empty combos that can form melds Set3 and Set4
 -- Map over the combos and form Melds using formSetMeld Function
 formAllSetMeld:: [Card]->[Meld]
-formAllSetMeld deck = map (formSetMeld) (filter(not.null) $ checkAllThreeOrFourOfAKind deck)
+formAllSetMeld deck = map (formSetMeld) $ checkAllThreeOrFourOfAKind deck
 
 --Pattern matches accordingly to length of card list 
 --If Length = 3 then make a Set3
