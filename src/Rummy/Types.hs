@@ -17,6 +17,7 @@ data Play = Play
   , memory :: String
   , finalHand :: [Card]
   }
+  deriving(Show)
 type Trick = [Play]
 
 data Meld =
@@ -34,6 +35,7 @@ instance NFData Meld where
   rnf = rwhnf
 
 data Draw = Stock | Discard
+  deriving (Show)
 data Action = Action Act Card
   deriving(Show)
 
@@ -76,7 +78,7 @@ instance Show PlayerError where
   show StraightError = "All cards in a straight must be of consecutive ranks"
   show KnockError = "Knocked with more than 10 points in deadwood"
   show GinError = "Called gin with remaining deadwood"
-  show OmitError = "Did not combine all cards into melds"
+  show OmitError = "Did not combine all cards into melds" 
 
 data Player = Player {
   playerId :: PlayerId,

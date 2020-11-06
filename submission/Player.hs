@@ -2,9 +2,16 @@
 -- to comment where appropriate, use generic types and have fun!
 
 module Player where
-
-import Parser.Parser -- This is the source for the parser from the course notes
-import Rummy.Types   -- Here you will find types used in the game of Rummy
+import Parser.Instances
+import Parser.Parser ( character, is, unexpectedCharParser, (|||) ) -- This is the source for the parser from the course notes
+import Rummy.Types
+    ( Act(Drop, Gin, Knock),
+      Action(Action),
+      ActionFunc,
+      Draw(Stock,Discard),
+      Meld(..),
+      MeldFunc,
+      PlayFunc,Score )   -- Here you will find types used in the game of Rummy
 import Cards
     ( Card(..),
       Rank(Jack, Ace, King, Two, Three,Four, Five,Six,Seven, Eight, Nine,Queen,Ten),
@@ -13,6 +20,11 @@ import Cards
 import EitherIO
 import Data.List
 import Data.Ord
+import Data.Functor
+import Control.Monad
+import Rummy.Play
+
+-- import Debug.Trace
 
 -- | This card is called at the beginning of your turn, you need to decide which
 -- pile to draw from.
@@ -25,8 +37,167 @@ import Data.Ord
 --   -> [Card]     -- ^ the player's hand
 --   -> (Draw, String) -- ^ which pile did the player chose to draw from and memory
 pickCard :: ActionFunc
-pickCard _ _ _ _ _ =(Stock,"yep")
+pickCard topDiscard score memory _ hand  
+    | or(checkTopCardThreeSet topDiscard hand)==True= (Discard, convertedmemory)
+    | or (checkTopCardThreeSet topDiscard hand)==True= (Discard,convertedmemory)
+    | or (checkTopCardConsecutiveTwo topDiscard hand)==True = (Discard,convertedmemory)
+    | or (checkTopCardConsecutiveThreeFour topDiscard hand)==True= (Discard,convertedmemory)
+    | otherwise= (Stock,convertedmemory)
+    where convertedmemory= justToStr memory ++ show score 
 
+justToStr::Maybe String -> String
+justToStr (Just a)= a
+justToStr (Nothing)= ""
+
+string :: String -> Parser String
+string = traverse is
+
+-- <digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+enemyStock :: Parser Draw
+enemyStock = string "sto" >> pure Stock
+enemyDiscard :: Parser Draw
+enemyDiscard =string "dis" >> pure Discard
+choiceEnemy :: Parser Draw
+choiceEnemy = enemyStock||| enemyDiscard 
+
+calledGin:: Parser Act 
+calledGin = string "gin">> pure Gin
+calledKnock:: Parser Act 
+calledKnock = string "knock">> pure Knock
+calledDrop:: Parser Act 
+calledDrop = string "drop">> pure Drop
+
+
+
+-- from list of actions check if the last action was knock or gin 
+actionPlayer::Parser Act
+actionPlayer = calledGin||| calledKnock ||| calledDrop
+
+-- dropCard:: Parser Card
+-- dropCard = string (Card _ _)>> pure Card
+
+list :: Parser a -> Parser [a]
+list p = list1 p ||| pure []
+list1 :: Parser a -> Parser [a]
+--list1 p = p >>= (\p' -> list p >>= (\p''-> pure (p':p'')))
+list1 p = do
+  first <- p
+  rest <- list p
+  pure (first:rest)
+
+
+-- discardTop:: Parser Card
+-- discardTop 
+
+-- | Play a round of RPS given the result of the previous round.
+
+-- data Animal = Cat | Dog | Camel
+--   deriving Show
+
+
+-- cat,dog, camel :: Parser Animal
+-- dog = string "dog" >> pure Dog
+-- camel = string "camel" >> pure Camel
+-- cat = string "cat" >> pure Cat
+-- animal :: Parser Animal
+-- animal = cat ||| dog ||| camel
+-- | Associative container type.
+
+
+
+
+spaces :: Parser ()
+spaces = (is ' ' >> spaces) ||| pure ()
+
+doublescores :: Parser [Char]
+doublescores = do
+  spaces
+  _ <- is '('
+  a <- doubleDigit
+  _ <- is ','
+  b <- doubleDigit
+  _ <- is ')'
+  pure (a++b)
+
+singleScore ::Parser[Char]
+singleScore = do
+    spaces
+    _ <- is '('
+    a <-singleDigit
+    _ <- is ','
+    b <- singleDigit
+    _ <- is ')'
+
+    pure ("0"++a++"0"++b)
+
+thisMany :: Int -> Parser a -> Parser [a]
+thisMany n p = sequence (replicate n p)
+
+singleDigit :: Parser [Char]
+singleDigit = thisMany 1 digit
+
+doubleDigit :: Parser [Char]
+doubleDigit= thisMany 2 digit
+
+singleDoubleScore:: Parser [Char]
+singleDoubleScore = do
+    spaces 
+    _ <- is '('
+    a <-singleDigit
+    _ <- is ','
+    b <-doubleDigit
+    _ <- is ')'
+    pure ("0"++a++b)
+
+doubleSingleScore ::Parser[Char]
+doubleSingleScore = do
+    spaces
+    _ <- is '('
+    a <-doubleDigit
+    _ <- is ','
+    b <- singleDigit
+    _ <- is ')'
+    pure (a++"0"++b)
+
+allscores:: Parser[Char]
+allscores = singleScore|||singleDoubleScore|||doubleSingleScore|||doublescores
+
+digit :: Parser Char
+digit = is '0' ||| is '1' ||| is '2' ||| is '3' ||| is '4' ||| is '5' ||| is '6' ||| is '7' ||| is '8' ||| is '9'
+
+dropChar ::Parser [Char]
+dropChar = string "drop" >> pure "drop"
+knockChar ::Parser [Char]
+knockChar = string "knock" >> pure "knock"
+ginChar ::Parser [Char]
+ginChar = string "gin" >> pure "gin"
+
+
+playerAction :: Parser [Char]
+playerAction = ginChar||| knockChar |||dropChar
+
+allMemory :: Parser[[Char]]
+allMemory = do
+    spaces
+    a<-allscores
+    b<-playerAction
+    pure ([a,b])
+
+
+
+getMem :: ParseResult a -> a
+getMem (Result _ cs) = cs
+getMem (Error _) = error "You should not do that!"
+
+--  master function for meldable
+-- if discard + set2= Set3
+-- if discard + set3= Set4
+-- if discard + straight 2 = Straight3
+-- if discard + straight3= straight 4
+-- if discard + straight4=straight 5
+
+-- if any possbile then take discard
+-- else take stock
 -- | This function is called once you have drawn a card, you need to decide
 -- which action to call.
 
@@ -40,44 +211,56 @@ pickCard _ _ _ _ _ =(Stock,"yep")
 --   -> (Action, String) -- ^ the player's chosen card and new memory
 playCard :: PlayFunc
 -- playCard _ _ _ deck = ( Action Drop a ,"lol") where a = deck!!0
-playCard pickedCard _ _ deck 
-    -- |length deadwoodcards==0 && 
-    |length deadwoodcards==1 && discardedCardforGin/=pickedCard = (Action Gin discardedCardforGin ,"lol") 
-    |totalDeadwoodPoints deadwoodcards >=10 = (Action Drop highestcard, "lol")
-    |totalDeadwoodPoints deadwoodcards <10 && deadwoodCardDiscard/=pickedCard = (Action Knock deadwoodCardDiscard,"lol")
-    |otherwise = (Action Drop highestcard, "lol")
-    
+playCard pickedCard score memory deck 
+    -- =trace ("input deck:"++ show deck ++"picked card:" ++show pickedCard)(Action Drop (highestcard) ,"lol")
+    |all (isNotDeadwood)(makeMelds (30,30)"lol" deckafterdropcard)==True && playerscoreChanged==False && previousRoundaction=="drop"  = (Action Gin highestcard,(memory++"gin"))
+    |length deadwoodMelds==1 && playerscoreChanged==False && previousRoundaction=="drop"  = (Action Gin discarded,(memory++"gin"))
+    |finalPoints<=10 && discarded/=pickedCard && playerscoreChanged==False && previousRoundaction=="drop"   = (Action Knock discarded,(memory++"knock"))
+    |otherwise = (Action Drop discarded,(memory++"drop"))    
     where 
         highestcard= last (sort (deck))
-        deckPlusNewCard = deck++[pickedCard]
-        meldsFormed = (makeMelds (30,30) "lol" deckPlusNewCard)
-        deadwoodcards= filter(isDeadwood) meldsFormed
+        deckafterdropcard= (deck\\[highestcard]) ++[pickedCard]
+        meldsFormed=(makeMelds (30,30) "lol" deckPlusNewCard)
+        deckPlusNewCard= deck++[pickedCard]
+        deadwoodMelds= filter(isDeadwood) meldsFormed
+        deadwoodCardDiscard = (concat(map (convertMeldtoCard) deadwoodMelds)) 
+
+        discarded=if length deadwoodCardDiscard >=1 && checkIfMaxsamePick==False then maxByRank deadwoodCardDiscard else highestcard
+        checkIfMaxsamePick= if maxByRank deadwoodCardDiscard==pickedCard then True else False
+        deckwithoutDiscard= deckPlusNewCard\\ [discarded]
+        newMeldsformed= (makeMelds (30,30) "lol" deckwithoutDiscard)
+        finalDeadwood= filter(isDeadwood) newMeldsformed
+        finalPoints= totalDeadwoodPoints finalDeadwood
+        actionlist =  (getMem (parse (list allMemory) memory))
+        checkfirstRound= if length actionlist==0 then True else False
+        previousRoundaction = if checkfirstRound== True then "firstround" else last(last(actionlist))
+        previousRoundScore= if checkfirstRound== True then "firstround" else head(last(actionlist))
+        playerscoreChanged= if previousRoundScore/="firstround" then checkScoreChanged score previousRoundScore else False
 
 
-        discardedCardforGin=  last (convertMeldtoCard(last deadwoodcards))
-        deadwoodCardDiscard = last (convertMeldtoCard (maxByRankMeld deadwoodcards))
-        convertDeadwoodMeldToCards= concat (map (convertMeldtoCard) deadwoodcards)
-        deadwoodwithoutpickedCard= convertDeadwoodMeldToCards\\ [pickedCard]
-        maxDeadwoodCardForKnock= if length deadwoodwithoutpickedCard>0 then last(sort(deadwoodwithoutpickedCard)) else highestcard
-        -- maxDeadwoodCardForKnock= last (sort (deadwoodwithoutpickedCard))
+p1 :: String-> Int
+p1 chars = read (take 2 chars)::Int
+p2 :: String-> Int
+p2 chars = read (take 2 (drop 2 chars))::Int
+
+checkScoreChanged :: (Score,Score)-> String -> Bool
+checkScoreChanged curscore prvscore 
+    |  p1 prvscore /= fst curscore = True
+    |  p2 prvscore /= snd curscore = True
+    | otherwise = False
 
 
-checkIfFourFive::Meld->Int
-checkIfFourFive (Set4 _ _ _ _)=4
-checkIfFourFive (Straight4 _ _ _ _)=4
-checkIfFourFive (Straight5 _ _ _ _ _)=5
-
+myIntToStr :: Int -> String
+myIntToStr x
+    | x < 3     = show x ++ " is less than three"
+    | otherwise = "normal"
 --check if can form gin with current hand +
 -- 
 
 -- Get the rank of the card
 getRankMeld :: Meld-> Rank
 getRankMeld (Deadwood (Card _ r)) = r
-getRankMeld (Set3 _ _ _)= Ace
-getRankMeld(Set4 _ _ _ _)=Ace
-getRankMeld(Straight3 _ _ _)=Ace
-getRankMeld(Straight4 _ _ _ _)=Ace
-getRankMeld(Straight5 _ _ _ _ _)=Ace
+getRankMeld (_)=Ace
 
 -- Getting max card
 maxByRankMeld :: [Meld] -> Meld
@@ -91,9 +274,6 @@ convertMeldtoCard (Straight3 _ _ _) = []
 convertMeldtoCard (Straight4 _ _ _ _) = []
 convertMeldtoCard (Straight5 _ _ _ _ _) = []
 
---get maximum deadwood as discarded card
-
-
 -- | This function is called at the end of the game when you need to return the
 -- melds you formed with your last hand.
 -- Which melds to use for scoring.
@@ -102,23 +282,6 @@ convertMeldtoCard (Straight5 _ _ _ _ _) = []
 --   -> String        -- ^ the player's memory
 --   -> [Card]        -- ^ cards in player's hand
 --   -> [Meld]        -- ^ elected melds
--- makeMelds :: MeldFunc
--- makeMelds _ _ deck = convertHandtoDeadwood deck
-
---TESTING A WORKS PARTIALLY
--- makeMelds :: MeldFunc
--- makeMelds _ _ deck 
---     | length (formAllSetMeld deck) > length(getStraightForAllSuit deck)  = formAllSetMeld deck ++ getStraightForAllSuit remainder ++ convertHandtoDeadwood discardStraight
---     | length (getStraightForAllSuit deck)> length (formAllSetMeld deck) = getStraightForAllSuit deck ++ formAllSetMeld discardStraightNoSet ++ convertHandtoDeadwood finaldeadwood
---     | length (getStraightForAllSuit deck)==0  && length(formAllSetMeld deck)== 0 = convertHandtoDeadwood deck
---     | otherwise = convertHandtoDeadwood deck
---     where 
---         remainder = deck \\ remainderCards deck
---         discardStraight = remainder \\ getDiscardofStraight remainder
-
---         discardStraightNoSet = deck\\getDiscardofStraight deck
---         finaldeadwood= discardStraightNoSet \\ remainderCards discardStraightNoSet
---TESTING B TESTINGGGG
 makeMelds :: MeldFunc
 makeMelds _ _ deck 
     | length (formAllSetMeld deck) > length(getStraightForAllSuit deck)  = formAllSetMeld deck ++ getStraightForAllSuit remainder ++ convertHandtoDeadwood discardStraight
@@ -146,27 +309,9 @@ isDeadwood :: Meld -> Bool
 isDeadwood (Deadwood _) = True
 isDeadwood _ = False
 
-
--- formAllSetMeld deck + (getStraightForAllSuit )
-
--- bmiTell :: (RealFloat a) => a -> String  
--- bmiTell bmi  
---     | bmi <= 18.5 = "You're underweight, you emo, you!"  
---     | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"  
---     | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"  
---     | otherwise   = "You're a whale, congratulations!"  
-
-
-
-
-
-
--- zipWith (\x y -> 2*x + y) [1..4] [5..8]
 -- Player hand = [Card Club Two, Card Heart Two, Card Spade Two, Card Heart Ace, Card Club Ace, Card Spade Ace, Card Club Five, Card Club Seven , Card Club Nine,Card Club Ten]
 remainderCards :: [Card]-> [Card]
 remainderCards deck= concat (filter(not.null) $ checkAllThreeOrFourOfAKind deck)
--- checkAllThreeOrFourOfAKind hand= [[Card Heart Ace,Card Diamond Ace,Card Club Ace],[Card Heart Two,Card Spade Two,Card Club Two],[],[],[],[],[],[],[],[],[],[],[]]
-
 
 convertDeadwoodToPoints:: Meld -> Int
 convertDeadwoodToPoints (Deadwood (card)) =toPoints card 
@@ -176,12 +321,8 @@ convertDeadwoodToPoints (Straight3 _ _ _ ) = 0
 convertDeadwoodToPoints (Straight4 _ _ _ _) = 0
 convertDeadwoodToPoints (Straight5 _ _ _ _ _) = 0
 
-
-
-
-
 convertMeldstoPoints:: [Meld]->[Int]
-convertMeldstoPoints melds =  map (\meld-> convertDeadwoodToPoints meld) melds
+convertMeldstoPoints melds =   (\meld-> convertDeadwoodToPoints meld) <$> melds
 
 -- GETS ALL DEADWOOD POINTS FROM MELD
 totalDeadwoodPoints:: [Meld]->Int
@@ -193,7 +334,7 @@ toPoints (Card _ rank) | rank < Jack = fromEnum rank + 1
                        | otherwise = 10 -- Face cards are all worth 10
 
 convertCardstoPoints::[Card] -> [Int]
-convertCardstoPoints deck =  map (\card-> toPoints card) deck
+convertCardstoPoints deck =   (\card-> toPoints card) <$> deck
 
 getDeadwoodPoints:: [Card]->Int
 getDeadwoodPoints l = sum $ convertCardstoPoints l
@@ -206,7 +347,7 @@ playerhand1 :: [Card]
 playerhand1= [Card Heart Two, Card Heart Three, Card Heart Ace, Card Heart Four, Card Spade Two, Card Spade Three, Card Heart Five, Card Club Eight, Card Club Nine, Card Club Two]
 
 convertHandtoDeadwood:: [Card]->[Meld]
-convertHandtoDeadwood deck = map (convertCardtoDeadwood) deck
+convertHandtoDeadwood deck =  (convertCardtoDeadwood) <$> deck
 
 convertCardtoDeadwood:: Card->Meld
 convertCardtoDeadwood (Card s r)  = Deadwood (Card s r) 
@@ -220,38 +361,21 @@ getSuit (Card s _) = s
 getRank :: Card -> Rank
 getRank (Card _ r) = r
 
+
+
 -- Getting max card
 maxByRank :: [Card] -> Card
 maxByRank= foldr1 (\card_a card_b -> if getRank card_a>= getRank card_b then card_a else card_b)
 
--- Getting min card
-minByRank :: [Card] -> Card
-minByRank= foldr1 (\card_a card_b -> if getRank card_a <= getRank card_b then card_a else card_b)
-
-groupbyThree:: [Rank]->[[Rank]]
-groupbyThree ranks = zipWith const (take 3 <$> tails ranks) (drop (2)ranks)
-
-groupbyFour:: [Rank]->[[Rank]]
-groupbyFour ranks = zipWith const (take 4 <$> tails ranks) (drop (3)ranks)
-
-groupbyFive:: [Rank]->[[Rank]]
-groupbyFive ranks = zipWith const (take 5 <$> tails ranks) (drop (4)ranks)
-
-
-
-
-
 -- gets cards of the same suit
 cardsSameSuit:: Suit -> [Card] -> [Card]
-cardsSameSuit s deck = filter (\card -> getSuit card == s) deck
+cardsSameSuit s  = filter (\card -> getSuit card == s) 
 
 -- Sort Cards based on suit
 -- >>> ranked Heart [Card Heart Three, Card Heart Two, Card Heart Six]
 -- [Two,Three,Six]
 ranked::  Suit->[Card]->[Rank]
 ranked s deck= sort . map getRank $ cardsSameSuit s deck
-
-
 
 takeR :: Int -> [a] -> [a]
 takeR n = reverse . take n . reverse 
@@ -276,29 +400,16 @@ rmdups :: (Ord a) => [a] -> [a]
 rmdups = map head . group . sort
 
 longestSequence :: (Ord c, Num c) => (t -> Bool) -> [t] -> c
-longestSequence p = maximum . scanl (\count x -> if (p x) then count + 1 else 0) 0
-
-
-
--- Card Heart Eight, Card Heart Two, Card Heart Six,Card Heart Four, Card Heart Five]
-
--- checkConsecutiveFiveTest Heart [Card Heart Eight, Card Heart Two, Card Heart Six,Card Heart Four, Card Heart Five]
-checkConsecutiveThreeTest:: Suit-> [Card] ->[[Card]]
-checkConsecutiveThreeTest s d = map (\combo-> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else []) $ (groupbyThree (ranked s d)) 
-checkConsecutiveFourTest:: Suit-> [Card] ->[[Card]]
-checkConsecutiveFourTest s d = map (\combo-> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else []) $ (groupbyFour (ranked s d)) 
-checkConsecutiveFiveTest:: Suit-> [Card] ->[[Card]]
-checkConsecutiveFiveTest s d = map (\combo-> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else []) $ (groupbyFive (ranked s d)) 
--- checkRankedConsecutive Club,
--- [[],[],[],[],[],[Ace,Two],[Ace,Two,Three],[]]
-
-
+longestSequence p = maximum . scanl (\num x -> if (p x) then num + 1 else 0) 0
 
 checkRankedConsecutive:: Suit -> [Card] -> [[Card]]
-checkRankedConsecutive s deck =   map (\combo -> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else [] ) $ listOfRanked s deck
+checkRankedConsecutive s deck =  filter(not.null) $ map (\combo -> if checkThreeConsecutiveOrMore combo then convertSetToCard s combo else [] ) $ listOfRanked s deck
+
+checkthreefour::Suit->[Card]->[[Rank]]
+checkthreefour s deck=filter(not.null) $ map (\combo -> if checkThreeConsecutiveOrMore combo then  combo else [] ) $ listOfRanked s deck
 
 getStraightsNow :: Suit -> [Card] -> [[Card]]
-getStraightsNow s deck = ((filter(not.null) $ checkRankedConsecutive s deck))
+getStraightsNow s deck =   checkRankedConsecutive s deck
 
 
 getDiscardofStraight::[Card]->[Card]
@@ -319,14 +430,21 @@ convertSetToCard:: Suit ->[Rank] ->[Card]
 convertSetToCard s deck = map(\rank-> convertRanktoCard s rank) deck
 
 -- Takes a list of cards and Forms Melds that are either Straight3, Straight4, or Straight 5
-convertStraightMelds::[Card]-> Meld
+convertStraightMelds::[Card]-> [Meld]
 convertStraightMelds set
-    |length set==3 = Straight3 (set!!0) (set!!1) (set!!2)
-    |length set==4 = Straight4 (set!!0) (set!!1) (set!!2) (set!!3)
-    |otherwise = Straight5 (set!!0) (set!!1)(set!!2)(set!!3)(set!!4)
+    |length set==3 = [Straight3 (set!!0) (set!!1) (set!!2)]
+    |length set==4 = [Straight4 (set!!0) (set!!1) (set!!2) (set!!3)]
+    |length set==5 =[Straight5 (set!!0) (set!!1)(set!!2)(set!!3)(set!!4)]
+    |length set==6 =[Straight3 (set!!0) (set!!1) (set!!2), Straight3(set!!3)(set!!4)(set!!5)]
+    |length set==7 =[Straight4 (set!!0)(set!!1)(set!!2)(set!!3), Straight3(set!!4)(set!!5)(set!!6) ]
+    |length set==8 =[Straight4 (set!!0)(set!!1) (set!!2)(set!!3), Straight4(set!!4)(set!!5)(set!!6)(set!!7) ]
+    |length set==9 =[Straight5 (set!!0)(set!!1) (set!!2)(set!!3)(set!!4), Straight4(set!!5)(set!!6)(set!!7)(set!!8) ]
+    |length set==10 =[Straight5 (set!!0)(set!!1) (set!!2)(set!!3)(set!!4), Straight5(set!!5)(set!!6)(set!!7)(set!!8)(set!!9) ]
+    | otherwise = []
+
 
 getAllStraights::Suit -> [Card]->[Meld]
-getAllStraights s set = map (convertStraightMelds) straightCombos
+getAllStraights s set = concat (map (convertStraightMelds) straightCombos)
     where straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
 
 -- gets the longest Straight for a Suit for the Player's Hand
@@ -335,10 +453,12 @@ getAllStraights s set = map (convertStraightMelds) straightCombos
 -- Once obtained the combination, get the longest sequence to form the Straight Meld
 -- If forming Straights with a certain Suit doesn't exist return empty list
 getStraightfromSuit::Suit ->[Card]->[Meld]
-getStraightfromSuit s set = map (convertStraightMelds) singleStraight
+getStraightfromSuit s set = concat( map (convertStraightMelds) singleStraight)
     where 
         straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
         singleStraight= if straightCombos==[] then [] else [maximumBy (comparing length) straightCombos]
+
+
 
 -- Get cards that are Straights so that we can later subtract them from the current Player Hand    
 discardStraightTest :: Suit -> [Card] -> [Card]
@@ -357,8 +477,17 @@ getStraightForAllSuit deck = getStraightfromSuit Heart deck ++getStraightfromSui
 
 --Returns a list of lists of Ranks that have formed Potential Consecutive Combos of cards
 checkPotentialConsecutive:: Suit -> [Card] -> [[Rank]]
-checkPotentialConsecutive s deck = map (\combo -> if potentialConsecutiveSet combo then combo else [] ) $ listOfRanked s deck
+checkPotentialConsecutive s deck = filter(not.null) $ (\combo -> if potentialConsecutiveSet combo then combo else [] ) <$> listOfRanked s deck
 
+-- just need to the one with getSuit Card Top
+checkTopCardConsecutiveTwo :: Card -> [Card] -> [Bool]
+checkTopCardConsecutiveTwo topcard deck= (\combo-> if checkThreeConsecutiveOrMore(sort(combo ++[getRank topcard]))==True then True else False) <$> checkPotentialConsecutive (getSuit topcard) (deck)
+
+checkTopCardConsecutiveThreeFour :: Card->[Card]->[Bool]
+checkTopCardConsecutiveThreeFour topcard deck = (\combo-> if checkThreeConsecutiveOrMore(sort(combo ++[getRank topcard]))==True then True else False) <$> checkthreefour (getSuit topcard) (deck)
+
+-- getStraight2forAllSuit :: [Card]->[[Rank]]
+-- getStraight2forAllSuit deck= checkPotentialConsecutive Heart deck ++checkPotentialConsecutive Spade deck++checkPotentialConsecutive Club deck++checkPotentialConsecutive Diamond deck
 --Consecutive numbers 
 --Must be consecutive else is false
 --1,2,3 correct
@@ -385,6 +514,21 @@ cardsSameRank r deck = filter (\card -> getRank card == r) deck
 threeOrFourOfAKind:: Rank -> [Card] -> [Card]
 threeOrFourOfAKind r deck = if lengthCardsSameRank r deck > 2 then cardsSameRank r deck else []
 
+
+twoOfAKind :: Rank -> [Card] -> [Card]
+twoOfAKind r deck = if lengthCardsSameRank r deck == 2  then cardsSameRank r deck else []
+
+checkAllTwoofAKind :: [Card] -> [[Card]]
+checkAllTwoofAKind deck = filter(not.null)$ map(\rank->twoOfAKind rank deck)[Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
+          , Jack , Queen , King] 
+
+
+checkTopCardTwoSet :: Card -> [Card] -> [Bool]
+checkTopCardTwoSet card deck = (\combo->if getRank (head combo)==getRank card then True else False) <$> checkAllTwoofAKind deck
+
+checkTopCardThreeSet ::Card-> [Card]->[Bool]
+checkTopCardThreeSet card deck = (\combo->if length combo ==3 && getRank (head combo)==getRank card then True else False) <$> checkAllThreeOrFourOfAKind deck
+
 -- Master function to map each rank to the function to check if set3 or set4 exists and returns a list
 -- of Set3 or Set4 else return empty list if set3 or set4 doesn't exist
 -- USAGE:
@@ -392,14 +536,14 @@ threeOrFourOfAKind r deck = if lengthCardsSameRank r deck > 2 then cardsSameRank
 -- Card Diamond Two, Card Heart Queen, Card Club Queen]
 -- [[Card Club Ace,Card Spade Ace,Card Heart Ace],[Card Club Two,Card Spade Two,Card Diamond Two],[],[],[],[],[],[],[],[],[],[],[]]
 checkAllThreeOrFourOfAKind:: [Card]->[[Card]]
-checkAllThreeOrFourOfAKind deck = map (\rank -> threeOrFourOfAKind rank deck) [Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
+checkAllThreeOrFourOfAKind deck = filter(not.null) $ map (\rank -> threeOrFourOfAKind rank deck) [Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
           , Jack , Queen , King]
           
 -- Master function that will form All Set3/Set4 
 -- Obtains all non-empty combos that can form melds Set3 and Set4
 -- Map over the combos and form Melds using formSetMeld Function
 formAllSetMeld:: [Card]->[Meld]
-formAllSetMeld deck = map (formSetMeld) (filter(not.null) $ checkAllThreeOrFourOfAKind deck)
+formAllSetMeld deck = map (formSetMeld) $ checkAllThreeOrFourOfAKind deck
 
 --Pattern matches accordingly to length of card list 
 --If Length = 3 then make a Set3
@@ -415,9 +559,8 @@ formSetMeld set
 lengthCardsSameRank:: Rank -> [Card] -> Int
 lengthCardsSameRank r deck = length $ cardsSameRank r deck
 
---check GIN meaning can fit all 10 into meld
 
 
 
 
---discard card that is useless
+

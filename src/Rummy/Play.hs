@@ -19,6 +19,9 @@ import EitherIO
 import Rummy.Rules
 import Rummy.Types
 
+
+import Debug.Trace
+
 -- Play game
 
 -- | Play out a full game, then update the players.
