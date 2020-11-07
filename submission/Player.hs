@@ -206,7 +206,7 @@ playCard pickedCard score memory deck
         meldsFormed=(makeMelds (30,30) "lol" deckPlusNewCard)
         deckPlusNewCard= deck++[pickedCard]
         deadwoodMelds= filter(isDeadwood) meldsFormed
-        deadwoodCardDiscard = (concat(map (convertMeldtoCard) deadwoodMelds)) 
+        deadwoodCardDiscard = (concat( (convertMeldtoCard) <$> deadwoodMelds)) 
         discarded=if length deadwoodCardDiscard >=1 && checkIfMaxsamePick==False then maxByRank deadwoodCardDiscard else highestcard
         checkIfMaxsamePick= if maxByRank deadwoodCardDiscard==pickedCard then True else False
         deckwithoutDiscard= deckPlusNewCard\\ [discarded]
@@ -371,11 +371,11 @@ takeR n = reverse . take n . reverse
 
 -- Recursively remove head of the list
 mapListsR ::[Rank] -> [[Rank]]
-mapListsR l = map (\a -> takeR a l ) [1..length l]
+mapListsR l =  (\a -> takeR a l ) <$> [1..length l]
 
 -- Recursively remove the tail of the list
 mapListsL :: [Rank] -> [[Rank]]
-mapListsL l = map (\a ->take a l) [1.. length l]
+mapListsL l =  (\a ->take a l) <$> [1.. length l]
 
 -- USAGE:
 -- listOfRanked Heart [Card Heart Three, Card Heart Two, Card Heart Six,Card Heart Four, Card Heart Five]
@@ -405,8 +405,7 @@ checkthreefour s deck=filter(not.null) $ map (\combo -> if checkThreeConsecutive
 -- Gets all discard cards made from Each Suit
 -- Returns list of cards that were not able to form Straights
 getDiscardofStraight :: [Card] -> [Card]
-getDiscardofStraight deck = discardStraightTest Heart deck ++ discardStraightTest Club deck ++ discardStraightTest Spade deck ++ discardStraightTest Diamond deck 
-
+getDiscardofStraight deck = concat ((\suit -> discardStraightTest suit deck ) <$> [Spade .. ])
 
 -- Input: Suit , Rank
 -- Output Card
@@ -415,7 +414,7 @@ convertRanktoCard s r = Card s r
 
 -- takes the suit and the list of ranks to return back the deck of cards
 convertSetToCard:: Suit ->[Rank] ->[Card]
-convertSetToCard s deck = map(\rank-> convertRanktoCard s rank) deck
+convertSetToCard s deck = (\rank-> convertRanktoCard s rank) <$> deck
 
 -- Takes a list of cards and Forms Melds that are either Straight3, Straight4, or Straight 5
 convertStraightMelds::[Card]-> [Meld]
@@ -433,7 +432,7 @@ convertStraightMelds set
 -- Master function that returns all of the different Straights that can be formed 
 -- after obtaining a group of sorted cards that have been checked whether they are consecutive ranks
 getAllStraights::Suit -> [Card]->[Meld]
-getAllStraights s set = concat (map (convertStraightMelds) straightCombos)
+getAllStraights s set = concat ( (convertStraightMelds) <$> straightCombos)
     where straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
 
 -- gets the longest Straight for a Suit for the Player's Hand
@@ -442,7 +441,7 @@ getAllStraights s set = concat (map (convertStraightMelds) straightCombos)
 -- Once obtained the combination, get the longest sequence to form the Straight Meld
 -- If forming Straights with a certain Suit doesn't exist return empty list
 getStraightfromSuit::Suit ->[Card]->[Meld]
-getStraightfromSuit s set = concat( map (convertStraightMelds) singleStraight)
+getStraightfromSuit s set = concat(  (convertStraightMelds) <$> singleStraight)
     where 
         straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
         singleStraight= if straightCombos==[] then [] else [maximumBy (comparing length) straightCombos]
@@ -460,7 +459,7 @@ discardStraightTest s set= if straight ==[] then [] else maximumBy (comparing le
 -- getStraightForAllSuit deck = getAllStraights Heart deck ++getAllStraights Club deck ++getAllStraights Spade deck ++ getAllStraights Diamond deck
 
 getStraightForAllSuit:: [Card]->[Meld]
-getStraightForAllSuit deck = getStraightfromSuit Heart deck ++getStraightfromSuit Diamond deck ++getStraightfromSuit Spade deck ++ getStraightfromSuit Club deck
+getStraightForAllSuit deck = concat ((\suit -> getStraightfromSuit suit deck ) <$> [Spade .. ])
 
 --Returns a list of lists of Ranks that have formed Potential Consecutive Combos of cards
 checkPotentialConsecutive:: Suit -> [Card] -> [[Rank]]
@@ -503,8 +502,7 @@ twoOfAKind r deck = if lengthCardsSameRank r deck == 2  then cardsSameRank r dec
 -- Returns list of cards that are two of a kind
 -- eg: Card Heart Ace, Card Spade Ace
 checkAllTwoofAKind :: [Card] -> [[Card]]
-checkAllTwoofAKind deck = filter(not.null)$ map(\rank->twoOfAKind rank deck)[Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
-          , Jack , Queen , King] 
+checkAllTwoofAKind deck = filter(not.null)$ map(\rank->twoOfAKind rank deck)[Ace .. ]
 
 -- Input: Top Card
 -- Check if top card is meldable to form Set3 with any cards that form 2 of a kind in my hand
@@ -523,8 +521,7 @@ checkTopCardThreeSet card deck = (\combo->if length combo ==3 && getRank (head c
 -- Card Diamond Two, Card Heart Queen, Card Club Queen]
 -- [[Card Club Ace,Card Spade Ace,Card Heart Ace],[Card Club Two,Card Spade Two,Card Diamond Two],[],[],[],[],[],[],[],[],[],[],[]]
 checkAllThreeOrFourOfAKind:: [Card]->[[Card]]
-checkAllThreeOrFourOfAKind deck = filter(not.null) $ map (\rank -> threeOrFourOfAKind rank deck) [Ace , Two , Three , Four , Five , Six , Seven , Eight , Nine , Ten
-          , Jack , Queen , King]
+checkAllThreeOrFourOfAKind deck = filter(not.null) $ map (\rank -> threeOrFourOfAKind rank deck) [Ace .. ]
           
 -- Master function that will form All Set3/Set4 
 -- Obtains all non-empty combos that can form melds Set3 and Set4
