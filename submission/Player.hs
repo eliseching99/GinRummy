@@ -187,10 +187,6 @@ getMem (Error _) = error "You should not do that!"
 --  means can call Gin
 -- 3. check if among the deadwood, there are total points of deadwood <10 , can Knock
 -- 4. Drop Highest deadwood card
--- Procedure
--- Procedure
--- Procedure
--- Procedure
 
 playCard :: PlayFunc
 -- playCard _ _ _ deck = ( Action Drop a ,"lol") where a = deck!!0
@@ -285,14 +281,13 @@ makeMelds _ _ deck
     where 
         remainder = deck \\ remainderCards deck
         discardStraight = remainder \\ getDiscardofStraight remainder
-
         discardStraightNoSet = deck\\getDiscardofStraight deck
         finaldeadwood= discardStraightNoSet \\ remainderCards discardStraightNoSet
 
 -- Takes meld as input and checks if its not a Deadwood
 isNotDeadwood :: Meld -> Bool
 isNotDeadwood (Deadwood _) = False
-isNotDeadwood _     = True
+isNotDeadwood _ = True
 
 -- Takes meld as input and checks if it is Deadwood
 isDeadwood :: Meld -> Bool
@@ -316,7 +311,7 @@ convertDeadwoodToPoints (Straight5 _ _ _ _ _) = 0
 
 -- Convert list of Deadwood Melds to Points
 convertMeldstoPoints:: [Meld]->[Int]
-convertMeldstoPoints melds =   (\meld-> convertDeadwoodToPoints meld) <$> melds
+convertMeldstoPoints melds = convertDeadwoodToPoints <$> melds
 
 -- GETS ALL DEADWOOD POINTS FROM MELD
 totalDeadwoodPoints:: [Meld]->Int
@@ -329,7 +324,7 @@ toPoints (Card _ rank) | rank < Jack = fromEnum rank + 1
 
 -- convert cards into list of points
 convertCardstoPoints::[Card] -> [Int]
-convertCardstoPoints deck =   (\card-> toPoints card) <$> deck
+convertCardstoPoints deck =  toPoints <$> deck
 
 -- Convert list of Deadwood cards into points and Sum them up
 -- Outputs final Deadwood Points
@@ -358,7 +353,7 @@ maxByRank= foldr1 (\card_a card_b -> if getRank card_a>= getRank card_b then car
 
 -- gets cards of the same suit
 cardsSameSuit:: Suit -> [Card] -> [Card]
-cardsSameSuit s  = filter (\card -> getSuit card == s) 
+cardsSameSuit s  = filter ((s ==) . getSuit)
 
 -- Sort Cards based on suit
 -- Function that returns a sorted list of ranks based on the Suit Provided
@@ -405,7 +400,7 @@ checkthreefour s deck=filter(not.null) $ map (\combo -> if checkThreeConsecutive
 -- Gets all discard cards made from Each Suit
 -- Returns list of cards that were not able to form Straights
 getDiscardofStraight :: [Card] -> [Card]
-getDiscardofStraight deck = concat ((\suit -> discardStraightTest suit deck ) <$> [Spade .. ])
+getDiscardofStraight deck = concat (flip discardStraightTest deck <$> [Spade .. ])
 
 -- Input: Suit , Rank
 -- Output Card
@@ -414,7 +409,7 @@ convertRanktoCard s r = Card s r
 
 -- takes the suit and the list of ranks to return back the deck of cards
 convertSetToCard:: Suit ->[Rank] ->[Card]
-convertSetToCard s deck = (\rank-> convertRanktoCard s rank) <$> deck
+convertSetToCard s deck = convertRanktoCard s <$> deck
 
 -- Takes a list of cards and Forms Melds that are either Straight3, Straight4, or Straight 5
 convertStraightMelds::[Card]-> [Meld]
@@ -459,7 +454,7 @@ discardStraightTest s set= if straight ==[] then [] else maximumBy (comparing le
 -- getStraightForAllSuit deck = getAllStraights Heart deck ++getAllStraights Club deck ++getAllStraights Spade deck ++ getAllStraights Diamond deck
 
 getStraightForAllSuit:: [Card]->[Meld]
-getStraightForAllSuit deck = concat ((\suit -> getStraightfromSuit suit deck ) <$> [Spade .. ])
+getStraightForAllSuit deck = concat (flip getStraightfromSuit deck <$> [Spade .. ])
 
 --Returns a list of lists of Ranks that have formed Potential Consecutive Combos of cards
 checkPotentialConsecutive:: Suit -> [Card] -> [[Rank]]
@@ -486,7 +481,7 @@ checkThreeConsecutiveOrMore l = ((fromEnum . last) l - (fromEnum . head) l) == (
 -- Filters out cards with the same input Rank 
 -- Returns List of Cards with Input Rank 
 cardsSameRank:: Rank -> [Card] -> [Card]
-cardsSameRank r deck = filter (\card -> getRank card == r) deck
+cardsSameRank r deck = filter ((r ==) . getRank) deck
 
 -- Making meld of three or four of a kind
 -- Return set of 3 or 4 of a kind 
@@ -502,7 +497,7 @@ twoOfAKind r deck = if lengthCardsSameRank r deck == 2  then cardsSameRank r dec
 -- Returns list of cards that are two of a kind
 -- eg: Card Heart Ace, Card Spade Ace
 checkAllTwoofAKind :: [Card] -> [[Card]]
-checkAllTwoofAKind deck = filter(not.null)$ map(\rank->twoOfAKind rank deck)[Ace .. ]
+checkAllTwoofAKind deck = filter (not . null) (map (flip twoOfAKind deck) [Ace .. ])
 
 -- Input: Top Card
 -- Check if top card is meldable to form Set3 with any cards that form 2 of a kind in my hand
