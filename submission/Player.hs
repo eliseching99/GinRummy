@@ -424,11 +424,11 @@ convertStraightMelds set
     |length set==10 =[Straight5 (set!!0)(set!!1) (set!!2)(set!!3)(set!!4), Straight5(set!!5)(set!!6)(set!!7)(set!!8)(set!!9) ]
     | otherwise = []
 
--- Master function that returns all of the different Straights that can be formed 
--- after obtaining a group of sorted cards that have been checked whether they are consecutive ranks
-getAllStraights::Suit -> [Card]->[Meld]
-getAllStraights s set = concat ( (convertStraightMelds) <$> straightCombos)
-    where straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
+-- -- Master function that returns all of the different Straights that can be formed 
+-- -- after obtaining a group of sorted cards that have been checked whether they are consecutive ranks
+-- getAllStraights::Suit -> [Card]->[Meld]
+-- getAllStraights s set = concat ( (convertStraightMelds) <$> straightCombos)
+--     where straightCombos = ((filter(not.null) $ checkRankedConsecutive s set))
 
 -- gets the longest Straight for a Suit for the Player's Hand
 -- utilises function ConvertStraightMeld to convert the list of cards into a Straight Meld
@@ -448,11 +448,8 @@ discardStraightTest s set= if straight ==[] then [] else maximumBy (comparing le
         straight= ((filter(not.null) $ checkRankedConsecutive s set))
 
 -- MASTER FUNCTION for getting all Straight3, Straight4 and Straight 5 from Player's Hand
--- Concatenates output from getAllStraights from a certain suit together to form master list of straights
+-- Concatenates output from getStraightfromSuit from a certain suit together to form master list of straights
 -- from each suit
--- getStraightForAllSuit:: [Card]->[Meld]
--- getStraightForAllSuit deck = getAllStraights Heart deck ++getAllStraights Club deck ++getAllStraights Spade deck ++ getAllStraights Diamond deck
-
 getStraightForAllSuit:: [Card]->[Meld]
 getStraightForAllSuit deck = concat (flip getStraightfromSuit deck <$> [Spade .. ])
 
